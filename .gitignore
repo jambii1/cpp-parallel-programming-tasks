@@ -1,0 +1,8 @@
+# vscode configs
+.vscode
+
+# Built files
+out
+
+# CPP format file
+.clang-format
