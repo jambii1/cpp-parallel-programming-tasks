@@ -1,11 +1,22 @@
+#include <numeric>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
-#include <chrono>
+#include <thread>
 
-#include "generate_points_in_square.hpp"
-#include "get_circle_area.hpp"
+#include "clicker.hpp"
+#include "geometry_utils.hpp"
+
+namespace {
+  using seg_it_t = std::vector< double >::iterator;
+
+  void getPointsNumInCircleSegment(unsigned radius, mas::points_c_it_t begin, mas::points_c_it_t end, seg_it_t result)
+  {
+    *result = mas::getPointsNumInCircle(radius, begin, end);
+  }
+}
 
 int main(int argc, char* argv[])
 {
@@ -25,44 +36,66 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+  using namespace mas;
+
   int tries = std::strtol(argv[1], nullptr, 10);
   int seed = argc == 3 ? std::strtol(argv[2], nullptr, 10) : 0;
   int radius = 0;
+  int threadNum = 0;
 
-  while ((std::cin >> radius) && !std::cin.eof()) {
-    if (radius <= 0) {
-      std::cerr << "Radius is not a positive number\n";
+  while ((std::cin >> radius >> threadNum) && !std::cin.eof()) {
+    if (radius <= 0 || threadNum <= 0) {
+      std::cerr << "Radius or thread number is not a positive number\n";
 
       return 2;
     }
 
-    std::vector< geom::Point > points;
-
+    std::vector< mas::Point > points;
     try {
-      rndm::generatePointsInSquare(radius, tries, seed, points);
+      mas::generatePointsInSquare(radius, tries, seed, points);
     } catch (const std::exception& e) {
       std::cerr << e.what() << '\n';
 
       return 2;
     }
 
-    int errCircleArea = 0;
+    double duration_ms = 0.0;
+    int pointsNumInCircle = 0;
+    {
+      try {
+        std::vector< std::thread > threads;
+        threads.reserve(threadNum);
+        std::vector< double > results(threadNum, 0);
+        mas::Clicker cl;
 
-    const auto start{std::chrono::high_resolution_clock::now()};
-    double circleArea = circle::getCircleAreaMonteCarlo(errCircleArea, radius, points);
-    const auto finish{std::chrono::high_resolution_clock::now()};
+        size_t per_th = points.size() / threadNum;
+        int i = 0;
+        auto it = points.cbegin();
+        for (; i < threadNum - 1; ++i) {
+          auto end = it + per_th;
+          threads.emplace_back(getPointsNumInCircleSegment, radius, it, end, results.begin() + i);
+          it = end;
+        }
+        getPointsNumInCircleSegment(radius, it, it + per_th + points.size() % threadNum, results.begin() + i);
+        for (auto&& thread: threads) {
+          thread.join();
+        }
 
-    if (errCircleArea != 0.0) {
-      std::cerr << "Failed to calculate circle area\n";
+        pointsNumInCircle = std::accumulate(results.cbegin(), results.cend(), 0);
+        duration_ms = cl.millisec();
+      } catch (std::bad_alloc& e) {
+        std::cerr << e.what() << '\n';
 
-      continue;
+        return 2;
+      }
     }
 
-    const std::chrono::duration< double, std::milli > duration_ms = finish - start;
-
     std::cout << std::fixed << std::setprecision(3);
-    std::cout << duration_ms.count();
-    std::cout << ' ' << circleArea << '\n';
+    std::cout << duration_ms << ' ';
+
+    double circleArea =
+      (4.0 * radius * radius) * (static_cast< double >(pointsNumInCircle) / static_cast< double >(points.size()));
+    std::cout << circleArea << '\n';
   }
 
   if (!std::cin.eof()) {
