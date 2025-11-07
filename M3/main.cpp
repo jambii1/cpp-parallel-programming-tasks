@@ -16,7 +16,7 @@ int main()
     // commands["set"] = std::bind();
     commands["show"] = std::bind(showCircle, std::ref(std::cin), std::ref(std::cout), std::cref(shapes));
     // commands["showset"] = std::bind();
-    // commands["frame"] = std::bind();
+    commands["frame"] = std::bind(showFrame, std::ref(std::cin), std::ref(std::cout), std::cref(shapes));
     // commands["frameset"] = std::bind();
     // commands["spawn"] = std::bind();
     // commands["area-on"] = std::bind();

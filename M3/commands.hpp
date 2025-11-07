@@ -9,6 +9,8 @@
 namespace mas {
   void createCircle(std::istream& in, std::map< std::string, Circle >& shapes);
   void showCircle(std::istream& in, std::ostream& out, const std::map< std::string, Circle >& shapes);
+  void showFrame(std::istream& in, std::ostream& out, const std::map< std::string, Circle >& shapes);
+  void spawnProcess(std::istream& in);
 }
 
 #endif
